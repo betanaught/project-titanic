@@ -4,52 +4,57 @@ import re
 import sklearn
 import xgboost as xgb
 import seaborn as sns
+import matplotlib
+
 import matplotlib.pyplot as plt
-# $matplotlib inline
 
 import plotly.offline as py
-# py.init_notebook_mode(connected = True)
+
 import chart_studio.grid_objs as go
 import plotly.tools as tls
 
 import warnings
-warnings.filterwarnings('ignore')
 
 # Use these 5 base models for the stacking ?????
 from sklearn.ensemble import (RandomForestClassifier, AdaBoostClassifier,
                               GradientBoostingClassifier,
                               ExtraTreesClassifier)
 from sklearn.svm import SVC
-from sklearn.model_selection import KFold
+from sklearn.model_selection import KFoldpython
 
-# Load in the data
+matplotlib.use('TkAgg')
+plt.ion()
+warnings.filterwarnings('ignore')
+
+# Import data
 train = pd.read_csv('./train.csv')
-test  = pd.read_csv('./test.csv')
+test = pd.read_csv('./test.csv')
 PassengerId = test['PassengerId']
 PassengerId
 list(test.columns.values)
 test.head()
+
 train.head()
 
 full_data = [train, test]
 
-## Feature Engineering; tease out relavant features ---------------------------
+# Feature Engineering; tease out relavant features --------------------------
 
-## 1. Length of passenger name
+# 1. Length of passenger name
 train['Name_Length'] = train['Name'].apply(len)
 test['Name_Length'] = test['Name'].apply(len)
 
-## 2. Create cabin status variable for each passenger
+# 2. Create cabin status variable for each passenger
 train['cabin_yes'] = train['Cabin'].apply(lambda x: 0 if type(x) == float
                                           else 1)
 test['cabin_yes'] = test['Cabin'].apply(lambda x: 0 if type(x) == float
                                         else 1)
 
-## 3. Create FamilySize variable from SibSp and Parch
+# 3. Create FamilySize variable from SibSp and Parch
 for dataset in full_data:
     dataset['FamilySize'] = dataset['SibSp'] + dataset['Parch'] + 1
 
-## 4. Create Solo variable from FamilySize
+# 4. Create Solo variable from FamilySize
 for dataset in full_data:
     dataset['Solo'] = 0
 
@@ -58,7 +63,7 @@ dataset.loc[dataset['FamilySize'] == 1, 'Solo'] = 1
 for dataset in full_data:  # Remove NULL values from 'Embarked' column
     dataset['Embarked'] = dataset['Embarked'].fillna('S')
 
-  # Remove NULL values from 'Fare' column, create CategoricalFare
+# Remove NULL values from 'Fare' column, create CategoricalFare
 for dataset in full_data:
     dataset['Fare'] = dataset['Fare'].fillna(train['Fare'].median())
 train['CategoricalFare'] = pd.qcut(train['Fare'], 4)
@@ -67,19 +72,22 @@ for dataset in full_data:  # Create CategoricalAge variable
     age_avg = dataset['Age'].mean()
     age_std = dataset['Age'].std()
     age_null_count = dataset['Age'].isnull().sum()
-    age_null_random_list = np.random.randint(low = age_avg - age_std,
-                                             high = age_avg + age_std,
-                                             size = age_null_count)
+    age_null_random_list = np.random.randint(low=age_avg - age_std,
+                                             high=age_avg + age_std,
+                                             size=age_null_count)
     dataset['Age'][np.isnan(dataset['Age'])] = age_null_random_list
     dataset['Age'] = dataset['Age'].astype(int)
 train['CategoricalAge'] = pd.cut(train['Age'], 5)
 
 # Create Title variable from titles in passenger names:
-def get_title(name): # define quick function to do the Title extraction
+
+
+def get_title(name):  # define quick function to do the Title extraction
     title_search = re.search(' ([A-Za-z]+)\.', name)
     if title_search:
         return title_search.group(1)
     return ""
+
 
 for dataset in full_data:  # Now use our function to generate Title variable
     dataset['Title'] = dataset['Name'].apply(get_title)
@@ -100,7 +108,7 @@ WARNING!!!! The following lines map numeric values to NON-ordered!!
 '''
 
 for dataset in full_data:
-    ## Mapping Sex:
+    # Mapping Sex:
     dataset['Sex'] = dataset['Sex'].map( {'female': 0, 'male': 1} ).astype(int)
     ## Mapping Title:
     title_mapping = {"Mr": 1, "Miss": 2, "Mrs": 3, "Master": 4, "Rare": 5}
